@@ -1,4 +1,4 @@
-from db.connection import connect, disconnect
+from connection import connect, disconnect
 from sqlalchemy import text
 from tools.ap_manager import APManager
 from tools.wireless_tools import (
@@ -92,7 +92,7 @@ def process_common_methods(ap, connection, mac , ac):
         wireless_details_array = []
 
         # Delete older data for the given controller MAC from multiple tables
-        delete_old_data(connection, mac)
+        # delete_old_data(connection, mac)
 
         for ap_instance in ap_details:
             wireless_details = {
@@ -118,7 +118,9 @@ def process_common_methods(ap, connection, mac , ac):
             }
             wireless_details_array.append(wireless_ac_detail)
 
-        upsert_multiple_wireless_devices(wireless_details_array, connection)
+        print("WIRELESS DETAILS ARRAY", wireless_details_array)
+
+        # upsert_multiple_wireless_devices(wireless_details_array, connection)
 
         all_hosts_with_ssid = ap.gethosts()
         # update all these hosts in wireless_association
@@ -143,84 +145,56 @@ def process_common_methods(ap, connection, mac , ac):
     except Exception as e:
         log_message("ERROR","wireless",f"Error processing common methods: {e}")
 
-def main(connection):
+def main():
     try: 
-        try:
-            online_data = fetch_online_host(connection)
-        except Exception as e:
-            log_message("ERROR","wireless",f"Error fetching data from host_view: {e}")
-          
-        # print("DATA", online_data)
-        if not online_data:
-            log_message("ERROR","wireless","No matching data")
+        
+        ap_model = "cisco_ap"
+        username = 'admin'
+        password = 'cisco'
+        ip = '10.255.254.6'
+        port = '23'
+        protocol = 'telnet'
+        device_type = 'ACCESSPOINT'
+        mac = 'fjjsdMsnXjog'
 
-        for data in online_data:
+        if all([ap_model, username, password, ip, port, protocol, device_type]):
+            ap_manager = APManager()
             try:
-                ip, mac, ncm_conf , device_type, ap_model_data  = data
-                ap_model = ap_model_data["ap_model"]
-                detail_query = """
-                    SELECT 
-                        nc.username, 
-                        nc.password,
-                        nc.protocol, 
-                        nc.port_no
-                    FROM  
-                        ncm_configuration nc
-                    WHERE 
-                        nc.id = :ncm_conf;
-                """
-                detailed = connection.execute(text(detail_query), {"ncm_conf": ncm_conf}).fetchone()
+                ap = ap_manager.create_ap(ap_model, username, password, ip, port, protocol)
+            except Exception:
+                log_message("ERROR","wireless",f"Unsupported AP model: {ap_model}")
+                
 
-                if detailed:
-                    username, password = detailed[0], detailed[1]
-                    protocol, port = detailed[2], detailed[3]
+            try:
+                log_message("INFO","wireless",f"Connecting to {ap_model} AP at {ip} via {protocol}...")
+                ap.connect()
+                if device_type == 'ACCESSCONTROLLER':
 
-                    if all([ap_model, username, password, ip, port, protocol, device_type]):
-                        ap_manager = APManager()
-                        try:
-                            ap = ap_manager.create_ap(ap_model, username, password, ip, port, protocol)
-                        except Exception:
-                            log_message("ERROR","wireless",f"Unsupported AP model: {ap_model}")
-                            continue
-
-                        try:
-                            log_message("INFO","wireless",f"Connecting to {ap_model} AP at {ip} via {protocol}...")
-                            ap.connect()
-                            if device_type == 'ACCESSCONTROLLER':
-
-                                process_common_methods(ap, connection, mac, ac=True)
-                                
-                            else:
-                                process_common_methods(ap, connection , mac, ac=False)
-                            
-                        except Exception as e:
-                            log_message("ERROR","wireless",f"Error during AP connection or data handling: {e}")
-                            continue
-                    else:
-                        missing = {
-                            "model": ap_model, "username": username, "password": password,
-                            "ip": ip, "port": port, "protocol": protocol, "device_type": device_type
-                        }
-                        log_message("ERROR","wireless",f"Missing values : {k: v for k, v in missing.items() if not v}")
+                    process_common_methods(ap, mac, ac=True)
+                    
                 else:
-                    log_message("ERROR","wireless",f"No detailed information found for MAC address: {mac}")
+                    process_common_methods(ap , mac, ac=False)
+                
             except Exception as e:
-                log_message("ERROR","wireless",f"Error processing data for MAC address: {mac} - {e}")
-                continue
+                log_message("ERROR","wireless",f"Error during AP connection or data handling: {e}")
+        else:
+            missing = {
+                "model": ap_model, "username": username, "password": password,
+                "ip": ip, "port": port, "protocol": protocol, "device_type": device_type
+            }
+            log_message("ERROR","wireless",f"Missing values : {k: v for k, v in missing.items() if not v}")
 
     except Exception as e:
         log_message("ERROR","wireless",f"An unexpected error occurred in main: {e}")
-    finally:
-        disconnect(connection)
 
 def operate():
     while True:
         try:
-            connection = connect()
+            # connection = connect()
+            main()  
         except Exception as e:
-            log_message("ERROR","wireless",f"Failed to connect to the database: {e}")
-        if connection:    
-            main(connection)  
+            log_message("ERROR","wireless",f"Failed to connect to the database: {e}")  
+            
         time.sleep(60) 
 
 operate()
