@@ -1,4 +1,4 @@
-from ap_models.cisco_ap import CiscoAP
+from .ap_models.cisco_ap import CiscoAP
 # from ap_models.huawei_ap import HuaweiAP
 # from ap_models.unifi_ap import UniFiAP
 # from ap_models.huawei_ac import HuaweiAC

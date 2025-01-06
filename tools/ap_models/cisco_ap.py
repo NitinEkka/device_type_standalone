@@ -26,13 +26,13 @@ class CiscoAP(APBase):
         else:
             raise ValueError("Unsupported protocol: use 'ssh' or 'telnet'")
 
-    def get_configured_ssid(self):
+    def get_configured_ssid(self, mac):
         # Handle SSH or Telnet protocol
         if self.protocol == 'ssh':
-            output = self.connection.send_command("show dot11 associations")
+            output = self.connection.send_command("show dot11 bssid")
         elif self.protocol == 'telnet':
             # Send the command via Telnet
-            self.connection.write(b"show dot11 associations\n")
+            self.connection.write(b"show dot11 bssid\n")
             raw_output = ''
             meaningful_output = ''
             while True:
@@ -40,43 +40,104 @@ class CiscoAP(APBase):
                 chunk = self.connection.read_very_eager().decode('ascii')
                 raw_output += chunk
                 if chunk:
-                    log_message("INFO","scanner_tool","CHUNK RECEIVED: ", chunk.strip())
-                
+                    log_message("INFO", "scanner_tool", f"CHUNK RECEIVED: {chunk.strip()}")
+
                 # Check for and ignore single-character chunks and 'ap>' prompt
                 if re.search(r"^ap>$", chunk.strip()):  # Detect 'ap>' specifically
-                    log_message("INFO","scanner_tool","Detected prompt 'ap>'. Continuing to next chunk.")
+                    log_message("INFO", "scanner_tool", "Detected prompt 'ap>'. Continuing to next chunk.")
                     continue
-                
+
                 # Ignore chunks that are too small to be meaningful
                 if len(chunk.strip()) <= 5:
                     continue
-                
+
                 # Accumulate meaningful output
                 meaningful_output += chunk
-                
+
                 # Check for the end prompt 'ap>' indicating completion
                 if re.search(r"ap>$", raw_output.strip()):
                     break
-                
+
                 # Handle pagination
                 if "--More--" in chunk or "---- More ----" in chunk:
                     self.connection.write(b" ")
 
             output = meaningful_output.strip()
 
-        # Parse the AP details and construct the payload
-        host_payload = self.parse_ap_details(output, ap_mac)
-        for host in host_payload:
-            host['bssid'] = host['ssid']
-            host['security_type'] = ""
-            del host['name'] 
-        return host_payload
+        # Parse the output for BSSID and SSID
+        parsed_ssids = []
+        lines = output.splitlines()
 
-    def get_discovered_ssid(self):
+        # Detect and skip the header dynamically
+        for line in lines:
+            # Match data lines only (skip headers and invalid lines)
+            match = re.match(r"^\S+\s+(?P<bssid>\S+)\s+\S+\s+(?P<ssid>\S+)$", line)
+            if match and not (match.group("bssid").upper() == "BSSID" or match.group("ssid").upper() == "SSID"):
+                parsed_ssids.append({
+                    "bssid": match.group("bssid").replace(".", ""),  # Remove dots from BSSID
+                    "ssid": match.group("ssid"),
+                    "ap_mac": mac,
+                    "security_type": ""
+                })
 
-        host_payload = [{}]
-        
-        return host_payload
+        print("CONFIGURED SSIDS", parsed_ssids)
+        return parsed_ssids
+
+    def get_discovered_ssid(self, mac):
+        # Handle SSH or Telnet protocol
+        if self.protocol == 'ssh':
+            output = self.connection.send_command("show dot11 bssid")
+        elif self.protocol == 'telnet':
+            # Send the command via Telnet
+            self.connection.write(b"show dot11 bssid\n")
+            raw_output = ''
+            meaningful_output = ''
+            while True:
+                # Read a chunk of data
+                chunk = self.connection.read_very_eager().decode('ascii')
+                raw_output += chunk
+                if chunk:
+                    log_message("INFO", "scanner_tool", f"CHUNK RECEIVED: {chunk.strip()}")
+
+                # Check for and ignore single-character chunks and 'ap>' prompt
+                if re.search(r"^ap>$", chunk.strip()):  # Detect 'ap>' specifically
+                    log_message("INFO", "scanner_tool", "Detected prompt 'ap>'. Continuing to next chunk.")
+                    continue
+
+                # Ignore chunks that are too small to be meaningful
+                if len(chunk.strip()) <= 5:
+                    continue
+
+                # Accumulate meaningful output
+                meaningful_output += chunk
+
+                # Check for the end prompt 'ap>' indicating completion
+                if re.search(r"ap>$", raw_output.strip()):
+                    break
+
+                # Handle pagination
+                if "--More--" in chunk or "---- More ----" in chunk:
+                    self.connection.write(b" ")
+
+            output = meaningful_output.strip()
+
+        # Parse the output for BSSID and SSID
+        parsed_ssids = []
+        lines = output.splitlines()
+
+        # Detect and skip the header dynamically
+        for line in lines:
+            # Match data lines only (skip headers and invalid lines)
+            match = re.match(r"^\S+\s+(?P<bssid>\S+)\s+\S+\s+(?P<ssid>\S+)$", line)
+            if match and not (match.group("bssid").upper() == "BSSID" or match.group("ssid").upper() == "SSID"):
+                parsed_ssids.append({
+                    "bssid": match.group("bssid").replace(".", ""),  # Remove dots from BSSID
+                    "ssid": match.group("ssid"),
+                    "ap_mac": mac,
+                    "security_type": ""
+                })
+
+        return parsed_ssids
 
     def getSSID(self):
         """Fetch SSIDs from Cisco AP."""
@@ -100,19 +161,46 @@ class CiscoAP(APBase):
                 ssids.append(ssid)
         return ssids
 
-    def gethosts(self, SSID):
-        """Fetch connected hosts for a specific SSID using regex."""
+    def gethosts(self):
+        # Handle SSH or Telnet protocol
         if self.protocol == 'ssh':
-            output = self.connection.send_command(f"show dot11 associations {SSID}")
+            output = self.connection.send_command("show dot11 associations")
         elif self.protocol == 'telnet':
-            self.connection.write(f"show dot11 associations {SSID}\n".encode('ascii'))
-            output = self.connection.read_until(b"#").decode('ascii')
-        sample_data = [
-                {'mac_address' : 'mac1', 'ip_address' : 'ip1', 'supportedBand' : ['2.4G', '5G'], 'controllerId' : 'ac_mac'}
-                ]
-        # Parse output to get hosts for the given SSID
-        # return self._parse_hosts_output(output)
-        return sample_data 
+            # Send the command via Telnet
+            self.connection.write(b"show dot11 associations\n")
+            raw_output = ''
+            meaningful_output = ''
+            while True:
+                # Read a chunk of data
+                chunk = self.connection.read_very_eager().decode('ascii')
+                raw_output += chunk
+                if chunk:
+                    log_message("INFO","scanner_tool",f"CHUNK RECEIVED: {chunk.strip()}")
+                
+                # Check for and ignore single-character chunks and 'ap>' prompt
+                if re.search(r"^ap>$", chunk.strip()):  # Detect 'ap>' specifically
+                    continue
+                
+                # Ignore chunks that are too small to be meaningful
+                if len(chunk.strip()) <= 5:
+                    continue
+                
+                # Accumulate meaningful output
+                meaningful_output += chunk
+                
+                # Check for the end prompt 'ap>' indicating completion
+                if re.search(r"ap>$", raw_output.strip()):
+                    break
+                
+                # Handle pagination
+                if "--More--" in chunk or "---- More ----" in chunk:
+                    self.connection.write(b" ")
+
+            output = meaningful_output.strip()
+
+        # Parse the AP details and construct the payload
+        host_payload = self.parse_ap_details(output)
+        return host_payload
 
     def getallHosts(self, SSID_LIST):
         """Fetch connected hosts for all SSIDs using regex."""
@@ -173,8 +261,8 @@ class CiscoAP(APBase):
                 if match:
                     device_info = match.groupdict()
                     parsed_hosts.append({
-                        "ap_mac": device_info["mac"],
-                        "host_mac": device_info["mac"],
+                        "ap_mac": device_info["mac"].replace(".", ""),
+                        "host_mac": device_info["mac"].replace(".", ""),
                         "ssid": current_ssid or "",  
                         "host_ip": device_info["ip"],
                         "name": device_info["name"],

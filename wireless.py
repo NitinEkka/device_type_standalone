@@ -86,13 +86,26 @@ def delete_old_data(connection, mac):
         connection.commit()
         log_message("INFO","wireless",f"OLDER DATA FOR MAC {mac} DELETED in {table}")
 
-def process_common_methods(ap, connection, mac , ac):
+def process_common_methods(ap, connection, mac ,ip, ac):
     try:
-        ap_details = ap.getAps()
+        print("AC", ac)
+        if ac:
+            ap_details = ap.getAps()
+        else:
+            ap_details = [{
+                'ap_mac' : mac,
+                'supported_security': '',
+                'supported_band': "",
+                'controller_id': mac,
+                'created_at': datetime.now(),
+                'modified_at': datetime.now(),
+                'name' : '-'
+            }]
         wireless_details_array = []
 
         # Delete older data for the given controller MAC from multiple tables
-        # delete_old_data(connection, mac)
+        delete_old_data(connection, mac)
+        print("ALL APs", ap_details)
 
         for ap_instance in ap_details:
             wireless_details = {
@@ -120,10 +133,11 @@ def process_common_methods(ap, connection, mac , ac):
 
         print("WIRELESS DETAILS ARRAY", wireless_details_array)
 
-        # upsert_multiple_wireless_devices(wireless_details_array, connection)
+        upsert_multiple_wireless_devices(wireless_details_array, connection)
 
         all_hosts_with_ssid = ap.gethosts()
         # update all these hosts in wireless_association
+        print("ALL HOSTS", all_hosts_with_ssid)
 
         wireless_association_array = []
 
@@ -137,20 +151,26 @@ def process_common_methods(ap, connection, mac , ac):
             }
             wireless_association_array.append(wireless_association_data)
             update_hosts_ssid(host_details["ssid"], host_details["host_mac"].replace("-", ""),host_details["ap_mac"].replace("-", ""), connection)
+        print("WIRELESS ASSO ARRAY", wireless_association_array)
 
         bulk_insert_wireless_association(connection, wireless_association_array)
 
-        upsert_wireless_configured_ssid(ap.get_configured_ssid(), connection)
-        upsert_wireless_discovered_ssid(ap.get_discovered_ssid(), connection)
+        if not ac:
+            print("NOT AC")
+            upsert_wireless_configured_ssid(ap.get_configured_ssid(mac), connection)
+            upsert_wireless_discovered_ssid(ap.get_discovered_ssid(mac), connection)
+        else:
+            upsert_wireless_configured_ssid(ap.get_configured_ssid(), connection)
+            upsert_wireless_discovered_ssid(ap.get_discovered_ssid(), connection)
     except Exception as e:
         log_message("ERROR","wireless",f"Error processing common methods: {e}")
 
-def main():
+def main(connection):
     try: 
         
-        ap_model = "cisco_ap"
-        username = 'admin'
-        password = 'cisco'
+        ap_model = "cisco"
+        username = 'Cisco'
+        password = 'Cisco'
         ip = '10.255.254.6'
         port = '23'
         protocol = 'telnet'
@@ -170,10 +190,10 @@ def main():
                 ap.connect()
                 if device_type == 'ACCESSCONTROLLER':
 
-                    process_common_methods(ap, mac, ac=True)
+                    process_common_methods(ap, connection, mac,ip, ac=True)
                     
                 else:
-                    process_common_methods(ap , mac, ac=False)
+                    process_common_methods(ap, connection, mac,ip, ac=False)
                 
             except Exception as e:
                 log_message("ERROR","wireless",f"Error during AP connection or data handling: {e}")
@@ -182,7 +202,7 @@ def main():
                 "model": ap_model, "username": username, "password": password,
                 "ip": ip, "port": port, "protocol": protocol, "device_type": device_type
             }
-            log_message("ERROR","wireless",f"Missing values : {k: v for k, v in missing.items() if not v}")
+            log_message("ERROR","wireless",f"Missing values: {', '.join(f'{k}: {v}' for k, v in missing.items() if not v)}")
 
     except Exception as e:
         log_message("ERROR","wireless",f"An unexpected error occurred in main: {e}")
@@ -190,8 +210,8 @@ def main():
 def operate():
     while True:
         try:
-            # connection = connect()
-            main()  
+            connection = connect()
+            main(connection)  
         except Exception as e:
             log_message("ERROR","wireless",f"Failed to connect to the database: {e}")  
             

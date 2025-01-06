@@ -5,7 +5,406 @@ from collections import defaultdict
 from connection import connect, disconnect
 from snmp_walker import SNMPWalker
 from sqlalchemy import text
+import subprocess
  # Assuming OS_TYPE_CATEGORY is in the mapping file
+
+SNMP_DEVICE_CATEGORY = [
+  {
+  "SWITCH": {
+    "os_keys": [
+      "switch",
+      "layer 2",
+      "layer 3",
+      "huawei",
+      "cisco",
+      "juniper",
+      "dell",
+      "netgear",
+      "tp-link",
+      "huawei vrp",
+      "Edgecore",
+      "Edgecore Networks",
+      "linux"
+    ],
+    "nic_vendor": [
+      "huawei",
+      "cisco",
+      "juniper",
+      "dell",
+      "netgear",
+      "tp-link",
+      "arista",
+      "brocade"
+    ],
+    "snmp_keywords": [
+      "switch",
+      "sw",
+      "layer 3",
+      "layer 2",
+      "cisco",
+      "vlan",
+      "trunk",
+      "stp",
+      "lldp",
+      "spanning tree"
+    ],
+    "higher_ports": {
+      "tcp": [
+        22,
+        23
+      ],
+      "udp": [
+        161
+      ]
+    },
+    "lower_ports": {
+      "tcp": [
+        21,
+        8080
+      ],
+      "udp": [
+        1000,
+        69
+      ]
+    },
+    "keywords": [
+      "switch", "layer 2", "layer 3", "cisco", "aruba", "dlink", "tplink",
+            "huawei", "fiber", "netgear", "juniper", "extreme networks", "hpe",
+            "brocade", "dell networking", "mikrotik", "stackable", "managed switch",
+            "unmanaged switch", "poe switch", "gigabit switch", "ethernet switch", "sw"
+    ]
+  }
+  },
+  {
+"NETWORKAPPLIANCE": {
+    "os_keys": [
+      "routeros",
+      "fortios",
+      "pfsense",
+      "vyos",
+      "openwrt",
+      "pan-os",
+      "juniper junos",
+      "cisco ios",
+      "asa",
+      "sonicwall",
+      "synology",
+      "qnap",
+      "freebsd",
+      "linux",
+      "NAS",
+      "Thecus N8800PRO NAS device"
+    ],
+    "nic_vendor": [
+      "cisco",
+      "juniper",
+      "fortinet",
+      "palo alto",
+      "mikrotik",
+      "netgear",
+      "ubiquiti",
+      "synology",
+      "qnap",
+      "buffalo",
+      "sonicwall",
+      "zyxel",
+      "Sony",
+      "Xiaomi",
+      "LG",
+      "TCL",
+      "Samsung",
+      "Uniview",
+      "QSC"
+    ],
+    "snmp_keywords": [
+      "firewall",
+      "router",
+      "nas",
+      "vpn",
+      "wan",
+      "lan",
+      "gateway",
+      "routing table",
+      "interface",
+      "bandwidth",
+      "throughput",
+      "traffic",
+      "load balancing",
+      "content filtering",
+      "raid",
+      "disk usage",
+      "file share",
+      "storage",
+      "vpn connection"
+    ],
+    "higher_ports": {
+      "tcp": [
+        22,
+        23,
+        500,
+        4500,
+        8080,
+        8888,
+        9000,
+        1194,
+        1701,
+        1723,
+        1700,
+        554,
+        6466,
+        6467,
+        9552,
+        5353
+      ],
+      "udp": [
+        161,
+        500,
+        4500,
+        1194,
+        1701,
+        1723,
+        6466,
+        6467,
+        9552
+      ]
+    },
+    "lower_ports": {
+      "tcp": [
+        21,
+        445,
+        548,
+        2049  
+      ],
+      "udp": [
+        69,
+        123,
+        2049
+      ]
+    },
+    "keywords": [
+      "firewall",
+      "router",
+      "vpn",
+      "gateway",
+      "wan",
+      "lan",
+      "dmz",
+      "traffic",
+      "load balancing",
+      "bandwidth",
+      "vpn tunnel",
+      "nas",
+      "storage",
+      "raid",
+      "network drive",
+      "disk usage",
+      "nfs",
+      "smb",
+      "cifs",
+      "afp",
+      "backup",
+      "file sharing",
+      "vpn connection",
+      "secure access",
+      "content filtering",
+      "web filtering",
+      "proxy",
+      "intrusion prevention",
+      "intrusion detection",
+      "utm",
+      "HikVision",
+      "BRAVIA"
+    ]
+  }
+  },
+  {
+  "ACCESSPOINT": {
+    "os_keys": [
+      "access point",
+      "wireless",
+      "ap",
+      "cisco",
+      "ubiquiti",
+      "meraki",
+      "tplink",
+      "dlink",
+      "linksys",
+      "aruba",
+      "huawei",
+      "wap",
+      "linux",
+      "openwrt"
+    ],
+    "nic_vendor": [
+      "cisco",
+      "ubiquiti",
+      "aruba",
+      "meraki",
+      "tp-link",
+      "d-link",
+      "linksys",
+      "netgear",
+      "Cambridge",
+      "Ruijie",
+      "Ruijie Networks"
+    ],
+    "snmp_keywords": [
+      "access point",
+      "ap",
+      "wireless",
+      "ssid",
+      "wlan",
+      "radio",
+      "signal",
+      "frequency",
+      "band",
+      "wifi"
+    ],
+    "higher_ports": {
+      "tcp": [
+        22,
+        23,
+        1812,
+        1813
+      ],
+      "udp": [
+        161,
+        1812,
+        1813
+      ]
+    },
+    "lower_ports": {
+      "tcp": [
+        8080,
+        21
+      ],
+      "udp": [
+        69
+      ]
+    },
+    "keywords": [
+      "wap", "accesspoint", "wifi", "guangdong", "zte", "huawei", "ruckus",
+            "ubiquiti", "wireless", "802.11", "hotspot", "extender", "netgear",
+            "access point", "wi-fi", "wlan", "wireless lan", "wireless network",
+            "wireless bridge", "wireless repeater", "mesh wifi", "enterprise wifi", "Shenzhen Bilian Electronic","FIT","AP",
+            "Cambridge Industries(Group)","TACACS","zeroconf"
+    ]
+  }
+},
+{
+  "ACCESSCONTROLLER": {
+    "os_keys": [
+      "linux",
+      "embedded linux",
+      "cisco ios",
+      "aruba os",
+      "fortios",
+      "huawei vrp",
+      "routeros",
+      "openwrt",
+      "huawei",
+      "wap"
+    ],
+    "nic_vendor": [
+      "cisco",
+      "aruba",
+      "ruckus",
+      "fortinet",
+      "meraki",
+      "ubiquiti",
+      "huawei",
+      "tp-link",
+      "d-link",
+      "Cambridge"
+    ],
+    "snmp_keywords": [
+      "access controller",
+      "controller",
+      "wlan",
+      "wireless lan",
+      "wlc",
+      "ap management",
+      "frequency",
+      "radio",
+      "vlan",
+      "ssid",
+      "authentication",
+      "mobility",
+      "roaming",
+      "wifi controller"
+    ],
+    "higher_ports": {
+      "tcp": [
+        22,
+        23,
+        1812,
+        1813,
+        5246,
+        5247
+      ],
+      "udp": [
+        161,
+        1812,
+        1813,
+        5246,
+        5247
+      ]
+    },
+    "lower_ports": {
+      "tcp": [
+        8080,
+        8880,
+        21
+      ],
+      "udp": [
+        69
+      ]
+    },
+    "keywords": [
+      "access controller",
+      "wireless controller",
+      "wlc",
+      "ap management",
+      "wlan",
+      "ssid",
+      "mobility",
+      "roaming",
+      "radio",
+      "frequency",
+      "radius",
+      "tacacs",
+      "vlan",
+      "dhcp",
+      "wifi controller",
+      "wap",
+      "wifi",
+      "guangdong",
+      "zte",
+      "huawei",
+      "ruckus",
+      "ubiquiti",
+      "wireless",
+      "802.11",
+      "hotspot",
+      "extender",
+      "netgear",
+      "access point",
+      "wi-fi",
+      "wireless lan",
+      "wireless network",
+      "wireless bridge",
+      "wireless repeater",
+      "mesh wifi",
+      "enterprise wifi",
+      "Shenzhen Bilian Electronic",
+      "FIT",
+      "AP",
+      "Cambridge Industries(Group)",
+      "zeroconf"
+    ]
+  }
+}
+]
 
 DEVICE_TYPE_CATEGORY = {
     "SWITCH": {
@@ -1319,11 +1718,12 @@ FINAL_MIX = [
 ]
 
 # Function to perform intense scan using nmap
-def perform_nmap_scan(ip):
+def perform_nmap_scan(ip, iface):
     scanner = nmap.PortScanner()
     print(f"Running intense scan on {ip}...")
     # nmap_arg = f"-sV -O -sU -sS -p T:1-65535,U:67,68,111,123,137,138,161,162,500,554,631,1701,1812,1813,1900,1935,2049,3702,4500,5004,5005,5060,5061,5353,10000,5246,5247 -T4 -open --min-rate 300 --min-parallelism 50 --max-retries 5 --host-timeout 10m --script=rdp-ntlm-info,cups-info,snmp-info,http-title,snmp-sysdescr,sip-methods,nbstat,smb-os-discovery,upnp-info,nbstat,http-server-header,rdp-vuln-ms12-020"
-    nmap_arg = f"-p 1-100 -T5"
+    # nmap_arg = f"-e {iface} -F"
+    nmap_arg = f"-e {iface} -sV -O -sU -sS -p T:1-65535,U:67,68,111,123,137,138,161,162,500,554,631,1701,1812,1813,1900,1935,2049,3702,4500,5004,5005,5060,5061,5353,10000,5246,5247 -T4 -open --min-rate 300 --min-parallelism 50 --max-retries 5 --host-timeout 10m --script=rdp-ntlm-info,cups-info,snmp-info,http-title,snmp-sysdescr,sip-methods,nbstat,smb-os-discovery,upnp-info,nbstat,http-server-header,rdp-vuln-ms12-020"
     scanner.scan(ip, arguments=nmap_arg)
     return scanner[ip]
 
@@ -1843,32 +2243,104 @@ def test_processes(nmap_output, DEVICE_TYPE_CATEGORY):
         print("TEST SPECIFIC:", test_specific)
         
         if final_score:  # Ensure final_score is not empty before calling max()
+            print("INFO", "hostscanner", f"FINAL SCORE : {final_score}")
             max_score = max(final_score.values())
             max_keys = [key for key, value in final_score.items() if value == max_score]
 
             if len(max_keys) > 1:
                 for test_name in ["first", "second", "third", "fourth", "fifth"]:
                     if test_name in test_specific:
-                        for winner in test_specific[test_name]:
-                            if winner in max_keys:
-                                return winner
+                        test_winners = test_specific[test_name]
+                        eligible_winners = [winner for winner in max_keys if winner in test_winners]
+                        
+                        if len(eligible_winners) == 1:
+                            return eligible_winners[0]
+                
+                # If no unique winner is determined after all tests
+                return "OTHERS"
+            else:
+                # Only one max_key exists
                 return max_keys[0]
-
-            return max_keys[0]
         else:
-            return "PC"  # Return "PC" if no scores are available
+            return "PC"
 
     except Exception as e:
         print("Error :-> ", f"There was an error in test_processes: {e}")
         print("Error :-> ", f"There was an error in test_processes: {e}")
         return "PC"  # Return "PC" in case of any error
+    
+def is_port_161_open(nmap_output):
+    # Check if '161' exists in TCP ports with state 'open'
+    if "tcp" in nmap_output:
+        tcp_ports = nmap_output["tcp"]
+        if 161 in tcp_ports and tcp_ports[161].get("state") == "open":
+            return True
+
+    # Check if '161' exists in UDP ports with state 'open'
+    if "udp" in nmap_output:
+        udp_ports = nmap_output["udp"]
+        if 161 in udp_ports and udp_ports[161].get("state") == "open":
+            return True
+
+    return False
+
+def get_netbios_name(ip):
+    """
+    Executes nbtscan for the given IP and extracts the NetBIOS Name.
+    Args:
+        ip (str): The IP address to scan.
+    Returns:
+        str: The extracted NetBIOS Name, or None if no name is found.
+    """
+    try:
+        # Run the nbtscan command
+        command = f"nbtscan {ip}"
+        result = subprocess.run(command, shell=True, capture_output=True, text=True)
+
+        # Check if the command executed successfully
+        if result.returncode != 0:
+            print(f"Error: Command failed with return code {result.returncode}")
+            print(f"Stderr: {result.stderr}")
+            return None
+
+        # Print the raw output for debugging
+        print("Command Output:")
+        print(result.stdout)
+
+        # Split output into lines and process
+        lines = result.stdout.splitlines()
+        
+        # Filter out informational or separator lines
+        filtered_lines = [
+            line for line in lines
+            if not (line.startswith("Doing NBT") or line.startswith("IP address") or line.startswith("-"))
+        ]
+
+        # If there are no valid lines left, return None
+        if not filtered_lines:
+            return None
+
+        # Process the last line
+        last_line = filtered_lines[-1].strip()
+        parts = last_line.split()
+
+        # Ensure the line contains at least two columns (IP and NetBIOS Name)
+        if len(parts) >= 2:
+            return parts[1]  # NetBIOS Name is the second column
+
+        # If the line doesn't have enough columns, return None
+        return None
+    except Exception as e:
+        print(f"Error during execution: {e}")
+        return None
 
 # Main function to run both OS family and device type detection
 def main():
     ip_address = input("Enter the IP address to scan: ")
     mac = input("Enter the mac to scan: ")
+    iface = input("Enter the iface: ")
     try:
-        scan_result = perform_nmap_scan(ip_address)
+        scan_result = perform_nmap_scan(ip_address, iface)
         print("BEFORE",scan_result)
         scan_result = clean_nmap_output(scan_result)
         print("AFTER",scan_result)
@@ -1880,36 +2352,46 @@ def main():
         os = ""
         # hd = host_details(host['ip'], iface ,host['mac'])
 
-        # if agent_status:
-        #     device_type = "PC"
-        #     os, os_family = get_agent_os_version(mac)
+        snmp_according_to_port = is_port_161_open(scan_result)
+        print("SNMP SCC TO PORT", snmp_according_to_port)
+
+        if agent_status:
+            device_type = "PC"
+            os, os_family = get_agent_os_version(mac)
 
 
-        # elif snmp_status:
-        #     snmp_devices = get_snmp_conf(mac)
-        #     if snmp_devices:
-        #         for device in snmp_devices:
-        #             snmp_conf = device.get('configuration')
-        #             snmp_version = snmp_conf['version'].strip()
-        #             sys_data, sys_name = fetch_snmp_data(mac, ip_address, snmp_version, snmp_conf)
-        #             concatenated_data = str(sys_data) + str(sys_name)
-        #             print("SNMP concatenated_data", concatenated_data)
-        #             snmp_test_score = new_detect_device_type(concatenated_data, FINAL_MIX, 'snmp_keywords', 1)
+        elif snmp_status:
+            snmp_devices = get_snmp_conf(mac)
+            if snmp_devices:
+                for device in snmp_devices:
+                    snmp_conf = device.get('configuration')
+                    snmp_version = snmp_conf['version'].strip()
+                    sys_data, sys_name = fetch_snmp_data(mac, ip_address, snmp_version, snmp_conf)
+                    concatenated_data = str(sys_data) + str(sys_name)
+                    print("SNMP concatenated_data", concatenated_data)
+                    snmp_test_score = new_detect_device_type(concatenated_data, SNMP_DEVICE_CATEGORY, 'snmp_keywords', 1)
 
-        #             # Get the device type with the highest score
-        #             if snmp_test_score:
-        #                 max_score = max(snmp_test_score.values())  # Find the highest score
-        #                 max_keys = [key for key, value in snmp_test_score.items() if value == max_score]  # Get keys with the max score
+                    # Get the device type with the highest score
+                    if snmp_test_score:
+                        max_score = max(snmp_test_score.values())  # Find the highest score
+                        max_keys = [key for key, value in snmp_test_score.items() if value == max_score]  # Get keys with the max score
                         
-        #                 # If there are multiple max score keys, return the first one
-        #                 result = max_keys[0] if max_keys else None
-        #                 device_type = result
+                        # If there are multiple max score keys, return the first one
+                        result = max_keys[0] if max_keys else "SWITCH"
+                        device_type = result
                         
-        #                 print(f"Highest scoring device type: {result} with score: {max_score}")
+                        print(f"Highest scoring device type: {result} with score: {max_score}")
+            else:
+                device_type = test_processes(scan_result, FINAL_MIX)
                         
-        # else:
-        device_type = test_processes(scan_result,FINAL_MIX)
+        else:
+          device_type = test_processes(scan_result,FINAL_MIX)
         print("MAIN DEVICE TYPE", device_type)
+        host_name_nbtscan = get_netbios_name(ip_address)
+        print("HOSTNAME-unclean", host_name_nbtscan)
+        if host_name_nbtscan:
+            host_name_clean = host_name_nbtscan.strip("'\"")
+            print("HOSTNAME",host_name_clean)
         # Check if we should detect OS family based on osmatch accuracy
         if should_detect_os_family(scan_result):
             os_family = detect_os_family(scan_result)
