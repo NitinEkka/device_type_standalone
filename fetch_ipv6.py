@@ -50,22 +50,40 @@ def discover_hosts(interface, ipv6_subnet):
     return live_hosts
 
 def run_nmap(interface, hosts):
-    """Run nmap scan on discovered IPv6 hosts."""
+    """Run nmap scan on discovered IPv6 hosts and return list of dictionaries."""
     if not hosts:
         print("[!] No hosts to scan.")
-        return
+        return []
     
     print(f"[*] Running Nmap on {len(hosts)} hosts...")
     cmd = ["nmap", "-6", "-sn", "-e", interface] + hosts
     result = subprocess.run(cmd, capture_output=True, text=True)
-    
-    print("[+] Nmap scan results:\n")
-    print(result.stdout)
+
+    hosts_data = []
+    ipv6, mac = None, None
+
+    for line in result.stdout.split("\n"):
+        if "Nmap scan report for" in line:
+            ipv6 = line.split()[-1]
+        elif "MAC Address:" in line:
+            mac = line.split()[2]
+            if ipv6 and mac:
+                hosts_data.append({"mac": mac, "ipv6": ipv6})
+                ipv6, mac = None, None  # Reset for next host
+
+    print("[+] Nmap scan results:")
+    print(hosts_data)
+
+    return hosts_data
 
 if __name__ == "__main__":
     interfaces = get_ipv6_interfaces()
     print(f"Available IPv6 Interfaces: {interfaces}")
 
+    all_hosts = []
     for interface, ipv6_address in interfaces.items():
         live_hosts = discover_hosts(interface, ipv6_address)
-        run_nmap(interface, live_hosts)
+        all_hosts.extend(run_nmap(interface, live_hosts))
+
+    print("\nFinal Result:")
+    print(all_hosts)
