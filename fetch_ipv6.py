@@ -28,7 +28,25 @@ def get_ipv6_interfaces():
     
     return interfaces
 
-def discover_hosts(interface, ipv6_subnet):
+def check_ndp_table():
+    """Retrieve IPv6 neighbors and their MAC addresses using the NDP command."""
+    print("[*] Checking NDP table...")
+    cmd = ["ip", "-6", "neigh"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    lines = result.stdout.split("\n")
+    
+    ndp_data = []
+    for line in lines:
+        match = re.search(r"([a-fA-F0-9:]+) dev ([^ ]+) lladdr ([a-fA-F0-9:]+)", line)
+        if match:
+            ipv6, iface, mac = match.groups()
+            ndp_data.append({"interface": iface, "ipv6": ipv6, "mac": mac})
+    
+    print("[+] NDP Table:")
+    print(ndp_data)
+    return ndp_data
+
+def discover_hosts(interface):
     """Discover live hosts on the given interface using ping6."""
     print(f"[*] Discovering hosts on interface: {interface}...")
 
@@ -72,7 +90,7 @@ def run_nmap(interface, hosts):
         elif "MAC Address:" in line:
             mac = line.split()[2]
             if ipv6 and mac:
-                hosts_data.append({"mac": mac, "ipv6": ipv6})
+                hosts_data.append({"mac": mac, "ipv6": ipv6, "interface": interface})
                 ipv6, mac = None, None  # Reset for next host
 
     print("[+] Nmap scan results:")
@@ -85,12 +103,20 @@ if __name__ == "__main__":
     print(f"Available IPv6 Interfaces: {interfaces}")
 
     interface_host_map = {}
+    unique_hosts = {}
     
-    for interface, ipv6_address in interfaces.items():
-        live_hosts = discover_hosts(interface, ipv6_address)
+    ndp_results = check_ndp_table()
+    for entry in ndp_results:
+        unique_hosts[(entry["ipv6"], entry["mac"])] = entry
+    
+    for interface in interfaces:
+        live_hosts = discover_hosts(interface)
         scanned_hosts = run_nmap(interface, live_hosts)
-        if scanned_hosts:
-            interface_host_map[interface] = scanned_hosts
+        for host in scanned_hosts:
+            unique_hosts[(host["ipv6"], host["mac"])] = host
+        
+    for host in unique_hosts.values():
+        interface_host_map.setdefault(host["interface"], []).append(host)
     
-    print("\nFinal Interface-Hosts Mapping:")
+    print("\nInterface to Hosts Mapping:")
     print(interface_host_map)
