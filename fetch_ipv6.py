@@ -84,10 +84,13 @@ if __name__ == "__main__":
     interfaces = get_ipv6_interfaces()
     print(f"Available IPv6 Interfaces: {interfaces}")
 
-    all_hosts = []
+    interface_host_map = {}
+    
     for interface, ipv6_address in interfaces.items():
         live_hosts = discover_hosts(interface, ipv6_address)
-        all_hosts.extend(run_nmap(interface, live_hosts))
-
-    print("\nFinal Result:")
-    print(all_hosts)
+        scanned_hosts = run_nmap(interface, live_hosts)
+        if scanned_hosts:
+            interface_host_map[interface] = scanned_hosts
+    
+    print("\nFinal Interface-Hosts Mapping:")
+    print(interface_host_map)
