@@ -4,7 +4,9 @@ import re
 def get_ipv6_interfaces():
     """Retrieve all active IPv6 interfaces (excluding loopback), including link-local addresses."""
     interfaces = {}
-    result = subprocess.run(["ip", "-6", "addr", "show", "up"], capture_output=True, text=True)
+    cmd = ["ip", "-6", "addr", "show", "up"]
+    print(f"[*] Executing: {' '.join(cmd)}") 
+    result = subprocess.run(cmd, capture_output=True, text=True)
     lines = result.stdout.split("\n")
 
     current_iface = None
@@ -30,8 +32,9 @@ def discover_hosts(interface, ipv6_subnet):
     """Discover live hosts on the given interface using ping6."""
     print(f"[*] Discovering hosts on interface: {interface}...")
 
-    # Use ping6 to find live hosts
-    result = subprocess.run(["ping6", "-c", "3", "-I", interface, "ff02::1"], capture_output=True, text=True)
+    cmd = ["ping6", "-c", "3", "-I", interface, "ff02::1"]
+    print(f"[*] Executing: {' '.join(cmd)}")  # Print command
+    result = subprocess.run(cmd, capture_output=True, text=True)
     lines = result.stdout.split("\n")
     
     live_hosts = []
@@ -57,6 +60,7 @@ def run_nmap(interface, hosts):
     
     print(f"[*] Running Nmap on {len(hosts)} hosts...")
     cmd = ["nmap", "-6", "-sn", "-e", interface] + hosts
+    print(f"[*] Executing: {' '.join(cmd)}")  # Print command
     result = subprocess.run(cmd, capture_output=True, text=True)
 
     hosts_data = []
