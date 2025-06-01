@@ -301,6 +301,9 @@ class MeshCentralClient:
 
                 if parsed_message.get("action") == "msg" and parsed_message.get("type") == "services":
                     return parsed_message.get("value")
+                
+                if parsed_message.get("action") == "nodes":
+                    return parsed_message.get("nodes")
 
         except Exception as e:
             print("❌ Error in receive_messages:", e)

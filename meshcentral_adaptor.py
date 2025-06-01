@@ -79,7 +79,7 @@ class MeshCentralAdaptor:
         #     "nt_domain", "os_version", "interface_addresses"
         # ]
 
-        properties = ["system_info"]
+        properties = ["antivirus"]
 
         status = {}
         data = {}
@@ -2302,3 +2302,75 @@ class MeshCentralAdaptor:
             print("Invalid JSON format in diskinfo string")
         except Exception as e:
             print(f"Failed to set DISK info: {e}")
+
+    def get_av_status(self,payload):
+        """
+        Given a payload with node details, return a list of node IDs
+        where antivirus is present and enabled.
+        """
+        enabled_nodes = []
+
+        for mesh_id, node_list in payload.items():
+            for node in node_list:
+                node_id = node.get("_id")
+                av_entries = node.get("av")
+
+                if av_entries and isinstance(av_entries, list):
+                    # Check if the first AV entry has 'enabled' set to True
+                    if av_entries[0].get("enabled") is True:
+                        enabled_nodes.append(node_id)
+
+        return enabled_nodes
+
+    def get_antivirus(self, real_time=True, cache_data=None):
+        property_name = "cpuinfo"
+
+        if cache_data is None:
+            cache_data = {}
+
+        if self.device_id not in cache_data:
+            cache_data[self.device_id] = {}
+
+        # Print the full memory cache
+        print("🧠 FULL MEMORY CACHE:", cache_data)
+
+        # If real-time is True or no cached data exists
+        if real_time or property_name not in cache_data[self.device_id]:
+            command = {
+                "action": "nodes",
+                "id": "",
+                "skip": "0",
+                # "value": "sysinfo"
+            }
+            print("📤 anti-virus COMMAND:", command)
+
+            self.client.send_command(command)
+            output = self.client.receive_messages()
+            print("📥 anti-virus RESPONSE:", output)
+
+            return output
+        else:
+            print("📦 anti-virus RESPONSE (from memory):")
+            return cache_data[self.device_id][property_name]
+        
+    def set_antivirus(self, nodes):
+        try:
+            # Convert string to JSON object if needed
+            if isinstance(nodes, str):
+                nodes = json.loads(nodes)
+            print(f"NODES DATA IN SET : {repr(nodes)}")
+            result = self.get_av_status(nodes)
+            print("FINAL AV DATA :", result)
+            for node_id in result:
+
+                av_insert_query = text(f"""
+                UPDATE hosts SET antivirus_status = :antivirus_status WHERE nem_agent_id = :node_id;
+                """)
+                self.connection.execute(av_insert_query, {'node_id': node_id, "antivirus_status" : True})
+                self.connection.commit()
+                print("ANTI VIRUS STATUS CHANGED FOR NODE ID :", str(node_id))
+
+        except json.JSONDecodeError:
+            print("Invalid JSON format in cpuinfo string")
+        except Exception as e:
+            print(f"Failed to set CPU info: {e}")
