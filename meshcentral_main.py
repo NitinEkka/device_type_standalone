@@ -51,7 +51,7 @@ WS_URL = meshcentral_config["ws_url"]
 USERNAME = meshcentral_config["username"]
 PASSWORD = meshcentral_config["password"]
 ORIGIN = "https://192.168.30.22"
-NODE_ID = "node//1yc7jMvR5ofHMykNQCQhJ3mDHe6AQi7Z4Xp6z3UdPXozgl@G24b@mdSudH$NdlEM" # nv 21.10 mesh
+NODE_ID = "node//OYQvb11AsWpc7BnYH2BaHFwvAbEUerhbAnRd@3CZrj2BvnwJb0hiJmk86kSvkJi7" 
 print("LOGIN_URL" , LOGIN_URL)
 print("WS_URL" , WS_URL)
 # nv-win = node//1yc7jMvR5ofHMykNQCQhJ3mDHe6AQi7Z4Xp6z3UdPXozgl@G24b@mdSudH$NdlEM
@@ -64,7 +64,7 @@ connection = connect()
 # node//eSP6Du3A87X@Rb1CR4MW9xRUU31DoP6XH2CR7BGMioC3kJzcm0t2VdJ3e6YyS3nP - NV-WIN
 # node//VEnz2d4lFKBwGNRYZfr9DTPj45ge$NQCYWd0UP7rhXXkYURiu$A1AyzbnAOSXqs8 - DESKTOP-S30H78G
 # node//eSP6Du3A87X@Rb1CR4MW9xRUU31DoP6XH2CR7BGMioC3kJzcm0t2VdJ3e6YyS3nP
-device_id = "win_110"
+device_id = "a4be7805-4d48-4096-b33c-0dde2fb7e58a"
 adaptor = MeshCentralAdaptor(agent_client,connection, NODE_ID, device_id)
 
 time.sleep(5)

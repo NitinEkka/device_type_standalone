@@ -76,10 +76,10 @@ class MeshCentralAdaptor:
         #     "process", "cpuinfo", "programs", "cpustat", "services", "diskinfo",
         #     "interface_details", "logical_drives", "memory_devices", "memory_stat",
         #     "pci_devices", "platform_info", "system_info", "users", "wmi_bios",
-        #     "nt_domain", "os_version", "interface_addresses"
+        #     "nt_domain", "os_version", "interface_addresses", "antivirus"
         # ]
 
-        properties = ["antivirus"]
+        properties = ["nt_domain"]
 
         status = {}
         data = {}
@@ -1535,77 +1535,215 @@ class MeshCentralAdaptor:
             print("❌ Failed to parse JSON:", e)
             return None
     
+    # def set_system_info(self, data: dict):
+    #     try:
+    #         # Parse sysinfo
+    #         if isinstance(data.get("sysinfo"), str):
+    #             sysinfo_data = json.loads(data["sysinfo"])
+    #         else:
+    #             sysinfo_data = data.get("sysinfo", {})
+
+    #         # Parse smbios
+    #         if isinstance(data.get("smbios"), str):
+    #             smbios_data = self.parse_smbios_json(data["smbios"])
+    #             # smbios_data = json.loads(data["smbios"])
+    #             print("SMBIOS DATA : ", smbios_data)
+    #         else:
+    #             smbios_data = data.get("smbios", {})
+
+    #         try:
+    #             osinfo = sysinfo_data.get("hardware", {}).get("windows", {}).get("osinfo", {})
+    #             cpu = sysinfo_data.get("hardware", {}).get("windows", {}).get("cpu", [{}])[0]
+    #             memory = sysinfo_data.get("hardware", {}).get("windows", {}).get("memory", [{}])[0]
+    #             identifiers = sysinfo_data.get("hardware", {}).get("identifiers", {})
+
+    #             smbios_cpu = smbios_data.get('processorInfo', {}).get('0', {})
+    #             smbios_sys = smbios_data.get("systemInfo", {})
+
+    #             print("SMBIOS cpu : ", repr(smbios_cpu))
+    #             print("SMBIOS sys : ", repr(smbios_sys))
+
+    #             hostname = osinfo.get("CSName")
+    #             uuid = smbios_sys.get("uuid")
+
+    #             if not hostname or not uuid:
+    #                 print(f"[SystemInfo] Skipped update for device {self.device_id}: Missing hostname or UUID")
+    #                 return
+
+    #             # DELETE old record
+    #             delete_query = text("DELETE FROM system_info WHERE device_id = :device_id")
+    #             self.connection.execute(delete_query, {"device_id": self.device_id})
+    #             self.connection.commit()
+    #             # INSERT new record
+    #             insert_query = text("""
+    #                 INSERT INTO system_info (
+    #                     device_id, hostname, uuid, cpu_type, cpu_subtype, cpu_brand,
+    #                     cpu_physical_cores, cpu_logical_cores, physical_memory, hardware_vendor,
+    #                     hardware_model, hardware_version, board_vendor, board_model,
+    #                     board_version, computer_name
+    #                 ) VALUES (
+    #                     :device_id, :hostname, :uuid, :cpu_type, :cpu_subtype, :cpu_brand,
+    #                     :cpu_physical_cores, :cpu_logical_cores, :physical_memory, :hardware_vendor,
+    #                     :hardware_model, :hardware_version, :board_vendor, :board_model,
+    #                     :board_version, :computer_name
+    #                 )
+    #             """)
+    #             self.connection.execute(insert_query, {
+    #                 "device_id": self.device_id,
+    #                 "hostname": hostname,
+    #                 "uuid": uuid,
+    #                 "cpu_type": cpu.get("Caption"),
+    #                 "cpu_subtype": smbios_cpu.get("Processor"),
+    #                 "cpu_brand": cpu.get("Name"),
+    #                 "cpu_physical_cores": smbios_cpu.get("Cores"),
+    #                 "cpu_logical_cores": smbios_cpu.get("Threads"),
+    #                 "physical_memory": memory.get("Capacity"),
+    #                 "hardware_vendor": memory.get("Manufacturer"),
+    #                 "hardware_model": identifiers.get("product_name"),
+    #                 "hardware_version": smbios_cpu.get("Version"),
+    #                 "board_vendor": memory.get("Manufacturer"),
+    #                 "board_model": identifiers.get("product_name"),
+    #                 "board_version": smbios_cpu.get("Version"),
+    #                 "computer_name": hostname,
+    #             })
+    #             self.connection.commit()
+    #         except:
+    #             identifiers = sysinfo_data.get("hardware", {}).get("identifiers", {})
+    #             linux_data = sysinfo_data.get("hardware", {}).get("linux", {})
+    #             # DELETE old record
+    #             delete_query = text("DELETE FROM system_info WHERE device_id = :device_id")
+    #             self.connection.execute(delete_query, {"device_id": self.device_id})
+    #             self.connection.commit()
+    #             # INSERT new record
+    #             insert_query = text("""
+    #                 INSERT INTO system_info (
+    #                     device_id, hostname, uuid, cpu_type, cpu_subtype, cpu_brand,
+    #                     cpu_physical_cores, cpu_logical_cores, physical_memory, hardware_vendor,
+    #                     hardware_model, hardware_version, board_vendor, board_model,
+    #                     board_version, computer_name
+    #                 ) VALUES (
+    #                     :device_id, :hostname, :uuid, :cpu_type, :cpu_subtype, :cpu_brand,
+    #                     :cpu_physical_cores, :cpu_logical_cores, :physical_memory, :hardware_vendor,
+    #                     :hardware_model, :hardware_version, :board_vendor, :board_model,
+    #                     :board_version, :computer_name
+    #                 )
+    #             """)
+    #             self.connection.execute(insert_query, {
+    #                 "device_id": self.device_id,
+    #                 "hostname": None,
+    #                 "uuid": identifiers.get("product_uuid"),
+    #                 "cpu_type": identifiers.get("cpu_name"),
+    #                 "cpu_subtype": None,
+    #                 "cpu_brand": linux_data.get("chassis_vendor"),
+    #                 "cpu_physical_cores": None,
+    #                 "cpu_logical_cores": None,
+    #                 "physical_memory": None,
+    #                 "hardware_vendor": linux_data.get("chassis_vendor"),
+    #                 "hardware_model": linux_data.get("chassis_vendor"),
+    #                 "hardware_version": linux_data.get("chassis_version"),
+    #                 "board_vendor": linux_data.get("chassis_vendor"),
+    #                 "board_model": linux_data.get("chassis_vendor"),
+    #                 "board_version": linux_data.get("chassis_version"),
+    #                 "computer_name": None,
+    #             })
+    #             self.connection.commit()
+
+    #     except json.JSONDecodeError:
+    #         print("Invalid JSON format in system_info string")
+    #     except Exception as e:
+    #         print(f"[SystemInfo] Error for device {self.device_id}: {e}")
+
+
     def set_system_info(self, data: dict):
         try:
-            # Parse sysinfo
-            if isinstance(data.get("sysinfo"), str):
-                sysinfo_data = json.loads(data["sysinfo"])
-            else:
-                sysinfo_data = data.get("sysinfo", {})
+            # Parse sysinfo and smbios
+            sysinfo_data = json.loads(data.get("sysinfo", "{}")) if isinstance(data.get("sysinfo"), str) else data.get("sysinfo", {})
+            smbios_data = self.parse_smbios_json(data["smbios"]) if isinstance(data.get("smbios"), str) else data.get("smbios", {})
 
-            # Parse smbios
-            if isinstance(data.get("smbios"), str):
-                smbios_data = self.parse_smbios_json(data["smbios"])
-                # smbios_data = json.loads(data["smbios"])
-                print("SMBIOS DATA : ", smbios_data)
-            else:
-                smbios_data = data.get("smbios", {})
+            def delete_old_record():
+                delete_query = text("DELETE FROM system_info WHERE device_id = :device_id")
+                self.connection.execute(delete_query, {"device_id": self.device_id})
+                self.connection.commit()
 
-            osinfo = sysinfo_data.get("hardware", {}).get("windows", {}).get("osinfo", {})
-            cpu = sysinfo_data.get("hardware", {}).get("windows", {}).get("cpu", [{}])[0]
-            memory = sysinfo_data.get("hardware", {}).get("windows", {}).get("memory", [{}])[0]
-            identifiers = sysinfo_data.get("hardware", {}).get("identifiers", {})
+            def insert_record(payload):
+                insert_query = text("""
+                    INSERT INTO system_info (
+                        device_id, hostname, uuid, cpu_type, cpu_subtype, cpu_brand,
+                        cpu_physical_cores, cpu_logical_cores, physical_memory, hardware_vendor,
+                        hardware_model, hardware_version, board_vendor, board_model,
+                        board_version, computer_name
+                    ) VALUES (
+                        :device_id, :hostname, :uuid, :cpu_type, :cpu_subtype, :cpu_brand,
+                        :cpu_physical_cores, :cpu_logical_cores, :physical_memory, :hardware_vendor,
+                        :hardware_model, :hardware_version, :board_vendor, :board_model,
+                        :board_version, :computer_name
+                    )
+                """)
+                self.connection.execute(insert_query, payload)
+                self.connection.commit()
 
-            smbios_cpu = smbios_data.get('processorInfo', {}).get('0', {})
-            smbios_sys = smbios_data.get("systemInfo", {})
+            try:
+                # Attempt Windows parsing
+                osinfo = sysinfo_data.get("hardware", {}).get("windows", {}).get("osinfo", {})
+                cpu = sysinfo_data.get("hardware", {}).get("windows", {}).get("cpu", [{}])[0]
+                memory = sysinfo_data.get("hardware", {}).get("windows", {}).get("memory", [{}])[0]
+                identifiers = sysinfo_data.get("hardware", {}).get("identifiers", {})
 
-            print("SMBIOS cpu : ", repr(smbios_cpu))
-            print("SMBIOS sys : ", repr(smbios_sys))
+                smbios_cpu = smbios_data.get('processorInfo', {}).get('0', {})
+                smbios_sys = smbios_data.get("systemInfo", {})
 
-            hostname = osinfo.get("CSName")
-            uuid = smbios_sys.get("uuid")
+                hostname = osinfo.get("CSName")
+                uuid = smbios_sys.get("uuid")
 
-            if not hostname or not uuid:
-                print(f"[SystemInfo] Skipped update for device {self.device_id}: Missing hostname or UUID")
-                return
+                if not hostname or not uuid:
+                    print(f"[SystemInfo] Skipped update for device {self.device_id}: Missing hostname or UUID")
+                    return
 
-            # DELETE old record
-            delete_query = text("DELETE FROM system_info WHERE device_id = :device_id")
-            self.connection.execute(delete_query, {"device_id": self.device_id})
+                delete_old_record()
+                insert_record({
+                    "device_id": self.device_id,
+                    "hostname": hostname,
+                    "uuid": uuid,
+                    "cpu_type": cpu.get("Caption"),
+                    "cpu_subtype": smbios_cpu.get("Processor"),
+                    "cpu_brand": cpu.get("Name"),
+                    "cpu_physical_cores": smbios_cpu.get("Cores"),
+                    "cpu_logical_cores": smbios_cpu.get("Threads"),
+                    "physical_memory": memory.get("Capacity"),
+                    "hardware_vendor": memory.get("Manufacturer"),
+                    "hardware_model": identifiers.get("product_name"),
+                    "hardware_version": smbios_cpu.get("Version"),
+                    "board_vendor": memory.get("Manufacturer"),
+                    "board_model": identifiers.get("product_name"),
+                    "board_version": smbios_cpu.get("Version"),
+                    "computer_name": hostname,
+                })
 
-            # INSERT new record
-            insert_query = text("""
-                INSERT INTO system_info (
-                    device_id, hostname, uuid, cpu_type, cpu_subtype, cpu_brand,
-                    cpu_physical_cores, cpu_logical_cores, physical_memory, hardware_vendor,
-                    hardware_model, hardware_version, board_vendor, board_model,
-                    board_version, computer_name
-                ) VALUES (
-                    :device_id, :hostname, :uuid, :cpu_type, :cpu_subtype, :cpu_brand,
-                    :cpu_physical_cores, :cpu_logical_cores, :physical_memory, :hardware_vendor,
-                    :hardware_model, :hardware_version, :board_vendor, :board_model,
-                    :board_version, :computer_name
-                )
-            """)
-            self.connection.execute(insert_query, {
-                "device_id": self.device_id,
-                "hostname": hostname,
-                "uuid": uuid,
-                "cpu_type": cpu.get("Caption"),
-                "cpu_subtype": smbios_cpu.get("Processor"),
-                "cpu_brand": cpu.get("Name"),
-                "cpu_physical_cores": smbios_cpu.get("Cores"),
-                "cpu_logical_cores": smbios_cpu.get("Threads"),
-                "physical_memory": memory.get("Capacity"),
-                "hardware_vendor": memory.get("Manufacturer"),
-                "hardware_model": identifiers.get("product_name"),
-                "hardware_version": smbios_cpu.get("Version"),
-                "board_vendor": memory.get("Manufacturer"),
-                "board_model": identifiers.get("product_name"),
-                "board_version": smbios_cpu.get("Version"),
-                "computer_name": hostname,
-            })
-            self.connection.commit()
+            except Exception as e:
+                print(f"[SystemInfo] Windows parsing failed, falling back to Linux. Error: {e}")
+                identifiers = sysinfo_data.get("hardware", {}).get("identifiers", {})
+                linux_data = sysinfo_data.get("hardware", {}).get("linux", {})
+
+                delete_old_record()
+                insert_record({
+                    "device_id": self.device_id,
+                    "hostname": None,
+                    "uuid": identifiers.get("product_uuid"),
+                    "cpu_type": identifiers.get("cpu_name"),
+                    "cpu_subtype": None,
+                    "cpu_brand": linux_data.get("chassis_vendor"),
+                    "cpu_physical_cores": None,
+                    "cpu_logical_cores": None,
+                    "physical_memory": None,
+                    "hardware_vendor": linux_data.get("chassis_vendor"),
+                    "hardware_model": linux_data.get("chassis_vendor"),
+                    "hardware_version": linux_data.get("chassis_version"),
+                    "board_vendor": linux_data.get("chassis_vendor"),
+                    "board_model": linux_data.get("chassis_vendor"),
+                    "board_version": linux_data.get("chassis_version"),
+                    "computer_name": None,
+                })
+
         except json.JSONDecodeError:
             print("Invalid JSON format in system_info string")
         except Exception as e:
@@ -1620,67 +1758,130 @@ class MeshCentralAdaptor:
         if self.device_id not in cache_data:
             cache_data[self.device_id] = {}
 
+        # Print the full memory cache
         print("🧠 FULL MEMORY CACHE:", cache_data)
 
+        # If real-time is True or no cached data exists
         if real_time or property_name not in cache_data[self.device_id]:
             command = {
-                "action": "msg",
-                "nodeid": self.node_id,
-                "type": "console",
-                "value": "users"
+                "action": "nodes",
+                "id": "",
+                "skip": "0",
+                # "value": "sysinfo"
             }
-            print("📤 USERS COMMAND:", command)
-            self.client.send_command(command)
+            print("📤 users COMMAND:", command)
 
+            self.client.send_command(command)
             output = self.client.receive_messages()
-            print("📥 USERS RESPONSE:", output)
+            print("📥 users RESPONSE:", output)
+
             return output
         else:
-            print("📦 USERS RESPONSE (from memory):")
+            print("📦 users RESPONSE (from memory):")
             return cache_data[self.device_id][property_name]
+        
+    def extract_nodes_with_users(self,payload):
+        result = []
+        for node_list in payload.values():
+            for node in node_list:
+                users = node.get("users", [])
+                if users:  # Only include if users list is not empty
+                    result.append({node["_id"]: users})
+        return result
     
+    # def set_users(self, users):
+    #     print("📥 Raw user data:\n" + repr(users))  # Debug output
+
+    #     # valid_entries = []
+    #     # for line in users.strip().splitlines():
+    #     #     try:
+    #     #         parsed = json.loads(line)
+    #     #         if isinstance(parsed, dict):
+    #     #             valid_entries.append(parsed)
+    #     #     except json.JSONDecodeError:
+    #     #         print(f"⚠️ Skipping non-JSON line: {repr(line)}")
+    #     #         continue
+
+    #     # if not valid_entries:
+    #     #     print("⚠️ No valid user entries found.")
+    #     #     return
+
+    #     if isinstance(users, str):
+    #         users = json.loads(users)
+
+    #     users_dict = self.extract_nodes_with_users(users)
+    #     print("USERS DICT : ", users_dict)
+
+    #     for k, v in users_dict:
+
+    #     # Delete existing records
+    #     delete_query = text("DELETE FROM user_info WHERE device_id = :device_id")
+    #     self.connection.execute(delete_query, {"device_id": self.device_id})
+
+    #     # Insert new records
+    #     insert_query = text("""
+    #         INSERT INTO user_info (device_id, username, is_connected)
+    #         VALUES (:device_id, :username, :is_connected)
+    #     """)
+
+    #     # reps = []
+    #     # for entry in valid_entries:
+    #     #     state = entry.get("State", "").lower()
+    #     #     is_connected = state in ("connected", "listening")
+
+    #     #     reps.append({
+    #     #         "device_id": self.device_id,
+    #     #         "username": str(entry.get("SessionId")),
+    #     #         "is_connected": is_connected
+    #     #     })
+
+    #     self.connection.execute(insert_query, reps)
+    #     self.connection.commit()
+    #     print(f"✅ Inserted {len(reps)} user(s) for device {self.device_id}")
+
     def set_users(self, users):
+
         print("📥 Raw user data:\n" + repr(users))  # Debug output
 
-        valid_entries = []
-        for line in users.strip().splitlines():
-            try:
-                parsed = json.loads(line)
-                if isinstance(parsed, dict):
-                    valid_entries.append(parsed)
-            except json.JSONDecodeError:
-                print(f"⚠️ Skipping non-JSON line: {repr(line)}")
-                continue
+        if isinstance(users, str):
+            users = json.loads(users)
 
-        if not valid_entries:
-            print("⚠️ No valid user entries found.")
-            return
+        users_dicts = self.extract_nodes_with_users(users)  # List of dicts
 
-        # Delete existing records
-        delete_query = text("DELETE FROM user_info WHERE device_id = :device_id")
-        self.connection.execute(delete_query, {"device_id": self.device_id})
+        for node_entry in users_dicts:
+            for node_id, usernames in node_entry.items():
+                # Get device_id (machine_id) from hosts table
+                query = text("SELECT machine_id FROM hosts WHERE nem_agent_id = :node_id")
+                result = self.connection.execute(query, {"node_id": node_id}).fetchone()
 
-        # Insert new records
-        insert_query = text("""
-            INSERT INTO user_info (device_id, username, description, is_connected)
-            VALUES (:device_id, :username, :description, :is_connected)
-        """)
+                if not result:
+                    print(f"❌ No device found for node_id: {node_id}")
+                    continue
 
-        reps = []
-        for entry in valid_entries:
-            state = entry.get("State", "").lower()
-            is_connected = state in ("connected", "listening")
+                device_id = result[0]
 
-            reps.append({
-                "device_id": self.device_id,
-                "username": str(entry.get("SessionId")),
-                "description": entry.get("StationName"),
-                "is_connected": is_connected
-            })
+                # Delete existing records for this device_id
+                delete_query = text("DELETE FROM user_info WHERE device_id = :device_id")
+                self.connection.execute(delete_query, {"device_id": device_id})
 
-        self.connection.execute(insert_query, reps)
-        self.connection.commit()
-        print(f"✅ Inserted {len(reps)} user(s) for device {self.device_id}")
+                # Prepare insert values
+                reps = []
+                for username in usernames:
+                    reps.append({
+                        "device_id": device_id,
+                        "username": username,
+                        "is_connected": True
+                    })
+
+                # Insert new user records
+                insert_query = text("""
+                    INSERT INTO user_info (device_id, username, is_connected)
+                    VALUES (:device_id, :username, :is_connected)
+                """)
+                self.connection.execute(insert_query, reps)
+                self.connection.commit()
+
+                print(f"✅ Inserted {len(reps)} user(s) for device {device_id}")
 
     def get_wmi_bios(self, real_time=True, cache_data=None):
         property_name = "wmi_bios"
@@ -1840,6 +2041,23 @@ class MeshCentralAdaptor:
 
             self.connection.commit()
             print(f"✅ Saved {len(entries)} NT domain entries for device_id {self.device_id}")
+
+            # ⏬ Check if final_host_name is empty for this device_id
+            check_query = text("""
+                SELECT final_host_name FROM hosts_view WHERE machine_id = :device_id
+            """)
+            result = self.connection.execute(check_query, {"device_id": self.device_id}).fetchone()
+
+            if result and (result[0] is None or result[0].strip() == ""):
+                update_query = text("""
+                    UPDATE hosts SET host_name = :host_name WHERE machine_id = :device_id
+                """)
+                self.connection.execute(update_query, {
+                    "host_name": entries[0]["Name"],
+                    "device_id": self.device_id
+                })
+                self.connection.commit()
+                print(f"🛠️ Updated host_name for device_id {self.device_id}")
 
         except Exception as e:
             print(f"❌ Error in set_nt_domain: {e}")
